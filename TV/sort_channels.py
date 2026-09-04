@@ -1,7 +1,39 @@
 import requests
+import concurrent.futures
 import re
 import os
 
+# ================= 新增：无效链接检测模块 =================
+def check_channel(name, url, timeout=3):
+    """检测单个频道链接是否有效，返回 (名称, URL, 是否有效)"""
+    try:
+        # 使用 HEAD 请求，只获取响应头不下载视频，速度极快
+        response = requests.head(url.strip(), timeout=timeout, allow_redirects=True)
+        return (name, url, response.status_code in [200, 302])
+    except requests.exceptions.RequestException:
+        return (name, url, False)
+
+def filter_invalid_channels(channels, max_workers=30):
+    """并发检测所有频道链接，剔除死链
+    channels: list of (name, url)
+    返回: list of (name, url) 仅保留有效链接
+    """
+    print(f"🚀 正在检测 {len(channels)} 个频道的链接有效性...")
+    valid = []
+    invalid = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ch = {executor.submit(check_channel, name, url): (name, url) for name, url in channels}
+        for future in concurrent.futures.as_completed(future_to_ch):
+            name, url, is_valid = future.result()
+            if is_valid:
+                valid.append((name, url))
+            else:
+                invalid += 1
+    print(f"✅ 检测完成！共剔除 {invalid} 个死链，保留 {len(valid)} 个有效频道。")
+    return valid
+
+
+# ================= 原有核心逻辑 =================
 def normalize_channel_name(name):
     if not name:
         return ''
@@ -79,10 +111,7 @@ def load_channel_mapping():
     return mapping
 
 def parse_content(content):
-    """
-    解析内容，提取所有 (名称, URL) 列表，忽略分组信息。
-    支持 TXT 和 M3U 格式。
-    """
+    """解析内容，提取所有 (名称, URL) 列表，忽略分组信息。支持 TXT 和 M3U 格式。"""
     lines = content.split('\n')
     channels = []
     is_m3u = '#EXTM3U' in content or '#EXTINF' in content
@@ -91,7 +120,6 @@ def parse_content(content):
         for i in range(len(lines)):
             line = lines[i].strip()
             if line.startswith('#EXTINF:'):
-                # 提取名称
                 name_match = re.search(r'tvg-name="([^"]*)"', line)
                 name = name_match.group(1) if name_match else line.split(',')[-1].strip()
                 name = normalize_channel_name(name)
@@ -105,7 +133,7 @@ def parse_content(content):
             if not line or line.startswith('#'):
                 continue
             if ', #genre#' in line or ',#genre#' in line:
-                continue  # 跳过分类行
+                continue
             if ',' in line:
                 parts = line.split(',', 1)
                 if len(parts) == 2:
@@ -152,6 +180,12 @@ def main():
                 seen_urls.add(channel_url)
                 all_channels.append((name, channel_url))
     print(f"\n📊 共获取 {len(all_channels)} 个去重后的频道")
+
+    # 【新增】在分类之前，先过滤掉无效链接
+    all_channels = filter_invalid_channels(all_channels)
+    if not all_channels:
+        print("错误：所有链接均无效，请检查网络或源地址")
+        return
 
     if not all_channels:
         print("错误：未能获取任何有效内容")
@@ -227,4 +261,4 @@ def main():
         print(f"保存文件时出错: {e}")
 
 if __name__ == "__main__":
-    main()
+    main() 
