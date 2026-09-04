@@ -6,11 +6,17 @@ on:
     - cron: '4 16 * * *'   # 每天 00:16
   workflow_dispatch:
 
+# 显式声明工作流权限
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y wget gzip
@@ -32,40 +38,40 @@ jobs:
             echo "Git中的文件: ${OLD_SIZE:-0} 字节, ${OLD_LINES:-0} 行, MD5: ${OLD_MD5:-无}"
             rm -f e.xml.old
           else
-            echo "🆕 首次运行，没有历史文件"
+            echo "首次运行，没有历史文件"
             OLD_MD5=""
           fi
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$FILE_CHANGED" = false ]; do
-            if [ $RETRY_COUNT -gt 0 ]; then
-              echo "⏳ 第 $RETRY_COUNT 次重试（文件无变化），等待 $((RETRY_DELAY/60)) 分钟..."
+            if [ $RETRY_COUNT -gt 0 ]; do
+              echo "第 $RETRY_COUNT 次重试（文件无变化），等待 $((RETRY_DELAY/60)) 分钟..."
               sleep $RETRY_DELAY
             fi
             
-            echo "📥 下载 EPG 文件 (尝试 $((RETRY_COUNT+1))/$MAX_RETRIES)..."
+            echo "下载 EPG 文件 (尝试 $((RETRY_COUNT+1))/$MAX_RETRIES)..."
             
             # 下载gzip压缩文件
-            wget --tries=2 --timeout=30 https://github.com/kuke31/xmlgz/raw/main/e.xml.gz -O e.xml.gz 2>download_error.log
+            wget --tries=2 --timeout=30 https://github.com/kuke31/xmlgz/raw/main/e.xml.gz -O e.xml.gz 2>内部工具_error.log
             
             if [ $? -ne 0 ] || [ ! -f e.xml.gz ] || [ ! -s e.xml.gz ]; then
-              echo "⚠️ 下载失败"
-              if [ -f download_error.log ]; then
-                cat download_error.log
+              echo "下载失败"
+              if [ -f 内部工具_error.log ]; then
+                cat 内部工具_error.log
               fi
               RETRY_COUNT=$((RETRY_COUNT + 1))
               continue
             fi
             
             # 解压文件
-            echo "📦 解压文件..."
+            echo "解压文件..."
             if ! gunzip -f e.xml.gz; then
-              echo "⚠️ 解压失败"
+              echo "解压失败"
               RETRY_COUNT=$((RETRY_COUNT + 1))
               continue
             fi
             
             if [ ! -f e.xml ]; then
-              echo "⚠️ 解压后文件不存在"
+              echo "解压后文件不存在"
               RETRY_COUNT=$((RETRY_COUNT + 1))
               continue
             fi
@@ -78,12 +84,12 @@ jobs:
             
             # 比较文件是否有变化
             if [ "$OLD_MD5" = "$NEW_MD5" ] && [ -n "$OLD_MD5" ]; then
-              echo "📊 文件无变化（MD5相同），需要重试"
+              echo "文件无变化（MD5相同），需要重试"
               RETRY_COUNT=$((RETRY_COUNT + 1))
               # 删除本次下载的文件，准备重试
               rm -f e.xml
             else
-              echo "🔄 文件有变化或首次运行，准备更新"
+              echo "文件有变化或首次运行，准备更新"
               FILE_CHANGED=true
               echo "updated=true" >> $GITHUB_OUTPUT
               echo "NEW_MD5=${NEW_MD5}" >> $GITHUB_ENV
@@ -94,12 +100,12 @@ jobs:
           done
           
           if [ "$FILE_CHANGED" = false ]; then
-            echo "❌ 重试 $MAX_RETRIES 次后文件仍无变化，退出"
+            echo "重试 $MAX_RETRIES 次后文件仍无变化，退出"
             echo "updated=false" >> $GITHUB_OUTPUT
-            exit 0  # 正常退出，不是错误
+            exit 0
           fi
           
-          echo "⏰ 检查完成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "检查完成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
       - name: Commit and push changes
         if: steps.check.outputs.updated == 'true'
@@ -111,7 +117,7 @@ jobs:
           
           while [ $PUSH_RETRY_COUNT -lt $MAX_PUSH_RETRIES ] && [ "$PUSH_SUCCESS" = false ]; do
             if [ $PUSH_RETRY_COUNT -gt 0 ]; then
-              echo "⏳ 推送重试 $PUSH_RETRY_COUNT/$MAX_PUSH_RETRIES，等待 ${PUSH_RETRY_DELAY}秒..."
+              echo "推送重试 $PUSH_RETRY_COUNT/$MAX_PUSH_RETRIES，等待 ${PUSH_RETRY_DELAY}秒..."
               sleep $PUSH_RETRY_DELAY
             fi
             
@@ -122,13 +128,12 @@ jobs:
             BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
             echo "当前分支: $BRANCH_NAME"
             
-            # 🔧 修复：使用 --autostash 自动暂存未提交的修改，避免拉取失败
             git pull --rebase --autostash origin $BRANCH_NAME
             
             git add e.xml
             
             if git diff --staged --quiet; then
-              echo "⚠️ 没有新的更改需要提交"
+              echo "没有新的更改需要提交"
               PUSH_SUCCESS=true
               break
             fi
@@ -142,21 +147,21 @@ jobs:
               -m "- Previous MD5: ${{ env.OLD_MD5 }}"
             
             if git push origin $BRANCH_NAME; then
-              echo "✅ 推送成功"
+              echo "推送成功"
               PUSH_SUCCESS=true
             else
-              echo "⚠️ 推送失败，重试中..."
+              echo "推送失败，重试中..."
               PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
             fi
           done
           
           if [ "$PUSH_SUCCESS" = false ]; then
-            echo "❌ 推送失败，已重试 $MAX_PUSH_RETRIES 次"
+            echo "推送失败，已重试 $MAX_PUSH_RETRIES 次"
             exit 1
           fi
 
       - name: Skip message
         if: steps.check.outputs.updated == 'false'
         run: |
-          echo "⏭️ 重试4次后文件仍无变化，跳过本次更新"
-          echo "📊 当前文件 MD5: $OLD_MD5"
+          echo "重试4次后文件仍无变化，跳过本次更新"
+          echo "当前文件 MD5: $OLD_MD5"
