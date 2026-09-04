@@ -2,11 +2,11 @@ name: 更新节目单
 
 on:
   schedule:
-    - cron: '43 1 * * *'  # 每天 9:43
-    - cron: '4 16 * * *'   # 每天 00:16
+    - cron: '43 1 * * *'  # 每天 09:43
+    - cron: '4 16 * * *'   # 每天 00:04
   workflow_dispatch:
 
-# 显式声明工作流权限
+# 显式声明权限
 permissions:
   contents: write
 
@@ -14,154 +14,91 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y wget gzip
 
-      - name: Download and check for changes with retry
-        id: check
+      - name: Download and check for changes
+        id: check_update
         run: |
-          MAX_RETRIES=4
-          RETRY_COUNT=0
-          RETRY_DELAY=300
-          FILE_CHANGED=false
+          echo "📥 正在下载 EPG 文件..."
           
-          # 获取git中最后一次提交的文件（用于比较）
-          if git show HEAD:e.xml &>/dev/null; then
-            git show HEAD:e.xml > e.xml.old 2>/dev/null || true
-            OLD_MD5=$(md5sum e.xml.old 2>/dev/null | cut -d' ' -f1)
-            OLD_SIZE=$(wc -c < e.xml.old 2>/dev/null)
-            OLD_LINES=$(wc -l < e.xml.old 2>/dev/null)
-            echo "Git中的文件: ${OLD_SIZE:-0} 字节, ${OLD_LINES:-0} 行, MD5: ${OLD_MD5:-无}"
-            rm -f e.xml.old
-          else
-            echo "首次运行，没有历史文件"
-            OLD_MD5=""
-          fi
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$FILE_CHANGED" = false ]; do
-            if [ $RETRY_COUNT -gt 0 ]; do
-              echo "第 $RETRY_COUNT 次重试（文件无变化），等待 $((RETRY_DELAY/60)) 分钟..."
-              sleep $RETRY_DELAY
-            fi
-            
-            echo "下载 EPG 文件 (尝试 $((RETRY_COUNT+1))/$MAX_RETRIES)..."
-            
-            # 下载gzip压缩文件
-            wget --tries=2 --timeout=30 https://github.com/kuke31/xmlgz/raw/main/e.xml.gz -O e.xml.gz 2>内部工具_error.log
-            
-            if [ $? -ne 0 ] || [ ! -f e.xml.gz ] || [ ! -s e.xml.gz ]; then
-              echo "下载失败"
-              if [ -f 内部工具_error.log ]; then
-                cat 内部工具_error.log
-              fi
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              continue
-            fi
-            
-            # 解压文件
-            echo "解压文件..."
-            if ! gunzip -f e.xml.gz; then
-              echo "解压失败"
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              continue
-            fi
-            
-            if [ ! -f e.xml ]; then
-              echo "解压后文件不存在"
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              continue
-            fi
-            
-            # 计算新文件的MD5
-            NEW_MD5=$(md5sum e.xml | cut -d' ' -f1)
-            NEW_SIZE=$(wc -c < e.xml)
-            NEW_LINES=$(wc -l < e.xml)
-            echo "新文件: ${NEW_SIZE} 字节, ${NEW_LINES} 行, MD5: ${NEW_MD5}"
-            
-            # 比较文件是否有变化
-            if [ "$OLD_MD5" = "$NEW_MD5" ] && [ -n "$OLD_MD5" ]; then
-              echo "文件无变化（MD5相同），需要重试"
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              # 删除本次下载的文件，准备重试
-              rm -f e.xml
-            else
-              echo "文件有变化或首次运行，准备更新"
-              FILE_CHANGED=true
-              echo "updated=true" >> $GITHUB_OUTPUT
-              echo "NEW_MD5=${NEW_MD5}" >> $GITHUB_ENV
-              echo "NEW_SIZE=${NEW_SIZE}" >> $GITHUB_ENV
-              echo "NEW_LINES=${NEW_LINES}" >> $GITHUB_ENV
-              echo "OLD_MD5=${OLD_MD5:-无}" >> $GITHUB_ENV
-            fi
-          done
-          
-          if [ "$FILE_CHANGED" = false ]; then
-            echo "重试 $MAX_RETRIES 次后文件仍无变化，退出"
-            echo "updated=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "检查完成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-
-      - name: Commit and push changes
-        if: steps.check.outputs.updated == 'true'
-        run: |
-          MAX_PUSH_RETRIES=3
-          PUSH_RETRY_COUNT=0
-          PUSH_SUCCESS=false
-          PUSH_RETRY_DELAY=60
-          
-          while [ $PUSH_RETRY_COUNT -lt $MAX_PUSH_RETRIES ] && [ "$PUSH_SUCCESS" = false ]; do
-            if [ $PUSH_RETRY_COUNT -gt 0 ]; then
-              echo "推送重试 $PUSH_RETRY_COUNT/$MAX_PUSH_RETRIES，等待 ${PUSH_RETRY_DELAY}秒..."
-              sleep $PUSH_RETRY_DELAY
-            fi
-            
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            
-            # 获取当前分支名
-            BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-            echo "当前分支: $BRANCH_NAME"
-            
-            git pull --rebase --autostash origin $BRANCH_NAME
-            
-            git add e.xml
-            
-            if git diff --staged --quiet; then
-              echo "没有新的更改需要提交"
-              PUSH_SUCCESS=true
+          # 1. 尝试下载 (重试3次)
+          SUCCESS=false
+          for i in 1 2 3; do
+            if wget --tries=2 --timeout=30 "https://github.com/kuke31/xmlgz/raw/main/e.xml.gz" -O e.xml.gz; then
+              SUCCESS=true
               break
             fi
-            
-            # 构建提交信息
-            git commit -m "Update EPG file" \
-              -m "- Date: $(date -u '+%Y-%m-%d %H:%M UTC')" \
-              -m "- Size: ${{ env.NEW_SIZE }} bytes" \
-              -m "- Lines: ${{ env.NEW_LINES }}" \
-              -m "- MD5: ${{ env.NEW_MD5 }}" \
-              -m "- Previous MD5: ${{ env.OLD_MD5 }}"
-            
-            if git push origin $BRANCH_NAME; then
-              echo "推送成功"
-              PUSH_SUCCESS=true
-            else
-              echo "推送失败，重试中..."
-              PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
-            fi
+            echo "⚠️ 第 $i 次下载失败，等待 60秒..."
+            sleep 60
           done
-          
-          if [ "$PUSH_SUCCESS" = false ]; then
-            echo "推送失败，已重试 $MAX_PUSH_RETRIES 次"
+
+          if [ "$SUCCESS" != "true" ]; then
+            echo "❌ 下载彻底失败，退出任务"
             exit 1
           fi
 
-      - name: Skip message
-        if: steps.check.outputs.updated == 'false'
+          # 2. 解压文件
+          echo "📦 解压文件..."
+          if ! gunzip -f e.xml.gz; then
+            echo "❌ 解压失败"
+            exit 1
+          fi
+
+          # 3. 计算新文件指纹
+          NEW_MD5=$(md5sum e.xml | cut -d' ' -f1)
+          NEW_SIZE=$(wc -c < e.xml)
+          echo "新文件信息: ${NEW_SIZE} bytes, MD5: ${NEW_MD5}"
+
+          # 4. 获取旧文件指纹并对比
+          OLD_MD5=""
+          if git show HEAD:e.xml &>/dev/null; then
+            OLD_MD5=$(git show HEAD:e.xml | md5sum | cut -d' ' -f1)
+            echo "旧文件 MD5: $OLD_MD5"
+          else
+            echo "🆕 首次运行，无历史记录"
+          fi
+
+          # 5. 设置输出变量
+          if [ "$NEW_MD5" = "$OLD_MD5" ] && [ -n "$OLD_MD5" ]; then
+            echo "⏭️ 文件未发生变化，跳过提交"
+            echo "updated=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ 文件已更新，准备提交"
+            echo "updated=true" >> $GITHUB_OUTPUT
+            echo "NEW_MD5=$NEW_MD5" >> $GITHUB_ENV
+            echo "NEW_SIZE=$NEW_SIZE" >> $GITHUB_ENV
+            echo "OLD_MD5=${OLD_MD5:-None}" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_update.outputs.updated == 'true'
         run: |
-          echo "重试4次后文件仍无变化，跳过本次更新"
-          echo "当前文件 MD5: $OLD_MD5"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git pull --rebase origin $BRANCH || true
+          
+          git add e.xml
+          
+          if git diff --staged --quiet; then
+            echo "⚠️ Git 暂存区无变化"
+            exit 0
+          fi
+          
+          git commit -m "Update EPG file" \
+            -m "Date: $(date -u '+%Y-%m-%d %H:%M UTC')" \
+            -m "Size: ${{ env.NEW_SIZE }} bytes" \
+            -m "MD5: ${{ env.NEW_MD5 }}"
+            
+          git push origin $BRANCH
+
+      - name: Skip message
+        if: steps.check_update.outputs.updated == 'false'
+        run: echo "⏭️ 本次运行跳过更新"
