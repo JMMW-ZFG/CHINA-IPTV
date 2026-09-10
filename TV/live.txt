@@ -99,6 +99,7 @@ CGTN纪录,https://english-livebkali.cgtn.com/live/doccgtn_0.m3u8
 东方卫视,http://bp-resource-dfl.bestv.cn/148/3/video.m3u8
 东方卫视,http://124.116.183.146:9901/tsfile/live/0107_1.m3u8
 东方卫视,http://112.46.85.60:8009/hls/31/index.m3u8
+东方卫视,https://bp-resource-dfl.bestv.cn/148/3/video.m3u8
 东方卫视,http://58.57.40.22:9901/tsfile/live/1030_1.m3u8
 东方卫视,http://bp-resource-dfl.bestv.cn/155/3/video.m3u8
 东方卫视,http://183.11.239.36:808/hls/114/index.m3u8
@@ -207,6 +208,8 @@ CGTN纪录,https://english-livebkali.cgtn.com/live/doccgtn_0.m3u8
 东南卫视,http://61.136.172.236:9901/tsfile/live/0137_1.m3u8
 东南卫视,http://live.zohi.tv/video/s10001-fztv-3/index.m3u8
 东南卫视,http://58.57.40.22:9901/tsfile/live/1037_1.m3u8
+东南卫视,http://iptv.huuc.edu.cn/hls/dnhd.m3u8
+东南卫视,http://101.35.240.114:88/live.php?id=东南卫视
 海峡卫视,http://38.64.72.148:80/hls/modn/list/4009/chunklist0.m3u8
 海峡卫视,http://38.64.72.148:80/hls/modn/list/4009/playlist.m3u8
 海峡卫视,http://8.138.7.223/tv/hxws.m3u8
@@ -232,6 +235,12 @@ CGTN纪录,https://english-livebkali.cgtn.com/live/doccgtn_0.m3u8
 教育,#genre#
 山东教育卫视,https://test1.live.sdetv.com.cn/live/dianshizhibo/playlist.m3u8
 
+台港澳,#genre#
+凤凰卫视中文台,http://101.35.240.114:88/phenix.php?id=fhzw
+凤凰卫视资讯台,http://101.35.240.114:88/phenix.php?id=fhzx
+凤凰卫视香港台,http://101.35.240.114:88/phenix.php?id=fhhk
+翡翠台,http://101.35.240.114:88/live.php?id=翡翠台
+
 其它,#genre#
 2021《精选5首酒吧DJ舞曲》,https://vdse.bdstatic.com//0e59c29ddbc68ed60dce8a6f4631c1f1.mp4
 2021一夜火爆几首DJ舞曲,https://vdse.bdstatic.com//1fc9fd16e02ca272bb81666b85bf4135.mp4
@@ -250,6 +259,13 @@ CGTN纪录,https://english-livebkali.cgtn.com/live/doccgtn_0.m3u8
 9首醉人的情歌,https://vd2.bdstatic.com/mda-nca3btr4bdxce5wj/sc/cae_h264_delogo/1647136483442128566/mda-nca3btr4bdxce5wj.mp4
 AMC电影,http://61.221.215.25:8800/hls/43/index.m3u8
 CCTV,https://p2.bdstatic.com/rtmp.liveshow.lss-user.baidubce.com/live/stream_bduid_6488563992_8982723413/merged_1707497046297_88536_25144_41936.m3u8
+CCTV4K,http://101.35.240.114:88/live.php?id=CCTV4K
+CGTNДҜ„ИҜӮ,https://0472.org/hls/cgtne.m3u8
+CGTNЖІ•ИҜӮ,https://0472.org/hls/cgtnf.m3u8
+CGTNЗӘӘЕҪ•,https://0472.org/hls/cgtnd.m3u8
+CGTNИҘҜИҜӮ,https://0472.org/hls/cgtnx.m3u8
+CGTNЙҲҜИҜӮ,https://0472.org/hls/cgtna.m3u8
+CHC动作电影,http://101.35.240.114:88/live.php?id=CHC动作电影
 CHC家庭影院,http://61.162.52.6:8088/newlive/live/hls/60/live.m3u8
 CHC电影,http://183.237.95.108:9901/tsfile/live/1008_1.m3u8?key=txiptv&playlive=0&authid=0
 DJ《心在跳情在烧》,https://vd4.bdstatic.com/mda-mhwf07t27w3gi1y7/1080p/cae_h264/1630406994590156367/mda-mhwf07t27w3gi1y7.mp4
