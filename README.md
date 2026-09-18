@@ -86,7 +86,7 @@
         <td><a href="./Multicast/anhui/unicom.txt">🌐暂无</a></td>
         <td><a href="./Unicast/anhui/mobile.txt">🔗单播</a></td>
         <td><a href="./Multicast/anhui/mobile.txt">🛰️组播</a></td>
-        <td><a href="./Unicast/anhui/telecom.txt">🌐暂无</a></td>
+        <td><a href="./Unicast/anhui/telecom.txt">🔗单播</a></td>
         <td><a href="./Multicast/anhui/telecom.txt">🛰️组播</a></td>
     </tr>
     <tr>

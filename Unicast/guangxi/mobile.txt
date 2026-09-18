@@ -54,6 +54,7 @@ CCTV15,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225945/index.m3u8?
 CCTV15,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225693/index.m3u8?servicetype=1&
 CCTV16,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225937/index.m3u8?servicetype=1&
 CCTV16,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225956/index.m3u8?servicetype=1&
+CCTV16,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221226690/index.m3u8?servicetype=1
 CCTV17,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225910/index.m3u8?servicetype=1&
 CCTV17,http://cdnrrs.gx.chinamobile.com/PLTV/77777777/224/3221225766/index.m3u8?servicetype=1&
 
